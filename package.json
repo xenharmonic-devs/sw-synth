@@ -37,7 +37,10 @@
     "pretest": "npm run compile",
     "posttest": "npm run lint",
     "test": "vitest",
-    "doc": "typedoc src/index.ts . --name aperiodic-oscillator"
+    "doc": "typedoc src/index.ts . --name sw-synth"
+  },
+  "dependencies": {
+    "aperiodic-oscillator": "github:xenharmonic-devs/aperiodic-oscillator"
   },
   "devDependencies": {
     "@types/jsdom": "^21.1.6",

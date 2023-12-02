@@ -1,8 +1,53 @@
+import {
+  AperiodicOscillator,
+  AperiodicWave,
+  UnisonOscillator,
+} from 'aperiodic-oscillator';
+
 // Exponential approach conversion, smaller value results in more eager envelopes
 const TIME_CONSTANT = 0.5;
 
 // Large but finite number to signify voices that are off
 const EXPIRED = 10000;
+
+type VoiceBaseParams = {
+  audioDelay: number;
+  attackTime: number;
+  decayTime: number;
+  sustainLevel: number;
+  releaseTime: number;
+};
+
+export interface VoiceParams extends VoiceBaseParams {
+  type: OscillatorType;
+  periodicWave?: PeriodicWave;
+}
+
+export interface UnisonVoiceParams extends VoiceParams {
+  stackSize: number;
+  spread: number;
+}
+
+export interface AperiodicVoiceParams extends VoiceBaseParams {
+  aperiodicWave: AperiodicWave;
+}
+
+export function defaultParams(): VoiceParams {
+  return {
+    audioDelay: 0.001,
+    type: 'triangle',
+    attackTime: 0.01,
+    decayTime: 0.3,
+    sustainLevel: 0.8,
+    releaseTime: 0.01,
+  };
+}
+
+export function defaultUnisonParams(): UnisonVoiceParams {
+  const result = defaultParams() as UnisonVoiceParams;
+  result.spread = 1.0;
+  return result;
+}
 
 // Tracking numbers for voice stealing
 // Technically we could run out of note identifiers,
@@ -16,9 +61,9 @@ let VOICE_ID = 1;
  * Oscillator with ADSR envelope.
  * Represents a single "channel" of polyphony. Should be reused for multiple notes.
  */
-class Voice {
+class VoiceBase {
   age: number;
-  audioContext: AudioContext;
+  audioContext: BaseAudioContext;
   oscillator: OscillatorNode;
   envelope: GainNode;
   log: (msg: string) => void;
@@ -27,6 +72,7 @@ class Voice {
   lastNoteOff?: () => void;
 
   constructor(
+    oscillatorClass: typeof OscillatorNode,
     audioContext: AudioContext,
     destination: AudioNode,
     log: (msg: string) => void
@@ -34,7 +80,7 @@ class Voice {
     this.age = EXPIRED;
     this.audioContext = audioContext;
 
-    this.oscillator = this.audioContext.createOscillator();
+    this.oscillator = new oscillatorClass(this.audioContext);
     this.envelope = this.audioContext.createGain();
     this.oscillator.connect(this.envelope).connect(destination);
     const now = this.audioContext.currentTime;
@@ -52,15 +98,10 @@ class Voice {
   }
 
   noteOn(
-    audioDelay: number,
     frequency: number,
     velocity: number,
-    typeOrPeriodicWave: OscillatorType | PeriodicWave,
-    attackTime: number,
-    decayTime: number,
-    sustainLevel: number,
-    releaseTime: number,
-    noteId: number
+    noteId: number,
+    params: VoiceBaseParams
   ) {
     this.log(
       `Voice ${this.voiceId}: Age = ${this.age}, note = ${noteId}, frequency = ${frequency}`
@@ -68,25 +109,22 @@ class Voice {
     this.age = 0;
     this.noteId = noteId;
 
-    if (typeOrPeriodicWave instanceof PeriodicWave) {
-      this.oscillator.setPeriodicWave(typeOrPeriodicWave);
-    } else {
-      this.oscillator.type = typeOrPeriodicWave;
-    }
-
-    const now = this.audioContext.currentTime + audioDelay;
+    const now = this.audioContext.currentTime + params.audioDelay;
     this.log(
       `Voice ${this.voiceId}: On time = ${now}, sustain time = ${
-        now + attackTime
+        now + params.attackTime
       }`
     );
     this.oscillator.frequency.setValueAtTime(frequency, now);
     this.envelope.gain.setValueAtTime(0, now);
-    this.envelope.gain.linearRampToValueAtTime(velocity, now + attackTime);
+    this.envelope.gain.linearRampToValueAtTime(
+      velocity,
+      now + params.attackTime
+    );
     this.envelope.gain.setTargetAtTime(
-      velocity * sustainLevel,
-      now + attackTime,
-      decayTime * TIME_CONSTANT
+      velocity * params.sustainLevel,
+      now + params.attackTime,
+      params.decayTime * TIME_CONSTANT
     );
 
     // Construct a callback that turns this voice off.
@@ -101,14 +139,18 @@ class Voice {
       this.log(`Voice ${this.voiceId}: Off time = ${then}`);
       this.envelope.gain.cancelScheduledValues(then);
       // NOTE: Canceling scheduled values doesn't hold intermediate values of linear ramps
-      if (then < now + attackTime) {
+      if (then < now + params.attackTime) {
         // Calculate correct linear ramp hold value
         this.envelope.gain.setValueAtTime(
-          (velocity * (then - now)) / attackTime,
+          (velocity * (then - now)) / params.attackTime,
           then
         );
       }
-      this.envelope.gain.setTargetAtTime(0, then, releaseTime * TIME_CONSTANT);
+      this.envelope.gain.setTargetAtTime(
+        0,
+        then,
+        params.releaseTime * TIME_CONSTANT
+      );
 
       // We're done here.
       this.noteId = -1;
@@ -121,6 +163,109 @@ class Voice {
 
   dispose() {
     this.oscillator.stop();
+    if (
+      this.oscillator instanceof UnisonOscillator ||
+      this.oscillator instanceof AperiodicOscillator
+    ) {
+      this.oscillator.dispose();
+    }
+  }
+}
+
+class Voice extends VoiceBase {
+  constructor(
+    audioContext: AudioContext,
+    destination: AudioNode,
+    log: (msg: string) => void
+  ) {
+    super(OscillatorNode, audioContext, destination, log);
+  }
+
+  noteOn(
+    frequency: number,
+    velocity: number,
+    noteId: number,
+    params: VoiceParams
+  ): () => void {
+    if (params.periodicWave) {
+      if (params.type !== 'custom') {
+        throw new Error(
+          "Oscillator type must be set to 'custom' when periodic wave is used."
+        );
+      }
+      this.oscillator.setPeriodicWave(params.periodicWave);
+    } else {
+      if (params.type === 'custom') {
+        throw new Error(
+          "Periodic wave must be given when oscillator type is set to 'custom'"
+        );
+      }
+      this.oscillator.type = params.type;
+    }
+    return super.noteOn(frequency, velocity, noteId, params);
+  }
+}
+
+class UnisonVoice extends VoiceBase {
+  oscillator!: UnisonOscillator;
+
+  constructor(
+    audioContext: AudioContext,
+    destination: AudioNode,
+    log: (msg: string) => void
+  ) {
+    super(UnisonOscillator, audioContext, destination, log);
+  }
+
+  noteOn(
+    frequency: number,
+    velocity: number,
+    noteId: number,
+    params: UnisonVoiceParams
+  ) {
+    this.oscillator.numVoices = params.stackSize;
+    const now = this.audioContext.currentTime + params.audioDelay;
+    this.oscillator.spread.setValueAtTime(params.spread, now);
+
+    if (params.periodicWave) {
+      if (params.type !== 'custom') {
+        throw new Error(
+          "Oscillator type must be set to 'custom' when periodic wave is used."
+        );
+      }
+      this.oscillator.setPeriodicWave(params.periodicWave);
+    } else {
+      if (params.type === 'custom') {
+        throw new Error(
+          "Periodic wave must be given when oscillator type is set to 'custom'"
+        );
+      }
+      this.oscillator.type = params.type;
+    }
+
+    return super.noteOn(frequency, velocity, noteId, params);
+  }
+}
+
+class AperiodicVoice extends VoiceBase {
+  oscillator!: AperiodicOscillator;
+
+  constructor(
+    audioContext: AudioContext,
+    destination: AudioNode,
+    log: (msg: string) => void
+  ) {
+    super(AperiodicOscillator, audioContext, destination, log);
+  }
+
+  noteOn(
+    frequency: number,
+    velocity: number,
+    noteId: number,
+    params: AperiodicVoiceParams
+  ) {
+    this.oscillator.setAperiodicWave(params.aperiodicWave);
+    return super.noteOn(frequency, velocity, noteId, params);
   }
 }
 
@@ -130,35 +275,17 @@ class Voice {
 export class Synth {
   audioContext: AudioContext;
   destination: AudioNode;
-  audioDelay: number;
-  typeOrPeriodicWave: OscillatorType | PeriodicWave;
-  attackTime: number;
-  decayTime: number;
-  sustainLevel: number;
-  releaseTime: number;
+  voiceParams?: VoiceBaseParams;
   log: (msg: string) => void;
-  voices: Voice[];
+  voices: VoiceBase[];
 
   constructor(
     audioContext: AudioContext,
     destination: AudioNode,
-    audioDelay = 0.001,
-    typeOrPeriodicWave = 'triangle',
-    attackTime = 0.01,
-    decayTime = 0.3,
-    sustainLevel = 0.8,
-    releaseTime = 0.01,
-    maxPolyphony = 6,
     log?: (msg: string) => void
   ) {
     this.audioContext = audioContext;
     this.destination = destination;
-    this.audioDelay = audioDelay;
-    this.typeOrPeriodicWave = typeOrPeriodicWave;
-    this.attackTime = attackTime;
-    this.decayTime = decayTime;
-    this.sustainLevel = sustainLevel;
-    this.releaseTime = releaseTime;
     if (log === undefined) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       this.log = (msg: string) => {};
@@ -167,7 +294,10 @@ export class Synth {
     }
 
     this.voices = [];
-    this.setPolyphony(maxPolyphony);
+  }
+
+  _newVoice(): VoiceBase {
+    return new Voice(this.audioContext, this.destination, this.log);
   }
 
   setPolyphony(maxPolyphony: number) {
@@ -178,9 +308,7 @@ export class Synth {
       this.voices.pop()!.dispose();
     }
     while (this.voices.length < maxPolyphony) {
-      this.voices.push(
-        new Voice(this.audioContext, this.destination, this.log)
-      );
+      this.voices.push(this._newVoice());
     }
   }
 
@@ -196,7 +324,7 @@ export class Synth {
     // Boils down to:
     // a) Pick the oldest released voice.
     // b) If there are no released voices, replace the oldest currently playing voice.
-    let oldestVoice: Voice | undefined;
+    let oldestVoice: VoiceBase | undefined;
     for (const voice of this.voices) {
       voice.age++;
       if (oldestVoice === undefined || voice.age > oldestVoice.age) {
@@ -207,17 +335,13 @@ export class Synth {
       return () => {};
     }
 
-    return oldestVoice.noteOn(
-      this.audioDelay,
-      frequency,
-      velocity,
-      this.typeOrPeriodicWave,
-      this.attackTime,
-      this.decayTime,
-      this.sustainLevel,
-      this.releaseTime,
-      NOTE_ID++
-    );
+    if (this.voiceParams === undefined) {
+      throw new Error(
+        'Synth.voiceParams must be set before calling Synth.noteOn'
+      );
+    }
+
+    return oldestVoice.noteOn(frequency, velocity, NOTE_ID++, this.voiceParams);
   }
 
   allNotesOff() {
@@ -226,5 +350,23 @@ export class Synth {
         voice.lastNoteOff();
       }
     }
+  }
+}
+
+export class UnisonSynth extends Synth {
+  voiceParams?: UnisonVoiceParams;
+  voices!: UnisonVoice[];
+
+  _newVoice(): UnisonVoice {
+    return new UnisonVoice(this.audioContext, this.destination, this.log);
+  }
+}
+
+export class AperiodicSynth extends Synth {
+  voiceParams?: AperiodicVoiceParams;
+  voices!: AperiodicVoice[];
+
+  _newVoice(): AperiodicVoice {
+    return new AperiodicVoice(this.audioContext, this.destination, this.log);
   }
 }
