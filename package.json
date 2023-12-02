@@ -1,6 +1,6 @@
 {
   "name": "sw-synth",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Lightweight sound synthesizer designed for real-time user interaction using the Web Audio API",
   "funding": {
     "type": "github",
