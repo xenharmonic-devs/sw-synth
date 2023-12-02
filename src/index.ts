@@ -10,25 +10,39 @@ const TIME_CONSTANT = 0.5;
 // Large but finite number to signify voices that are off
 const EXPIRED = 10000;
 
-type VoiceBaseParams = {
+/** Parameters for the ADSR envelope of the synth. */
+export type VoiceBaseParams = {
+  /** Audio delay in seconds. Increase on Firefox to reduce pops. */
   audioDelay: number;
+  /** Attack time in seconds. */
   attackTime: number;
+  /** Decay time constant (exponential decay from 1 to `sustainLevel`). */
   decayTime: number;
+  /** Steady state amplitude. */
   sustainLevel: number;
+  /** Release time constant (exponential decay from `sustainLevel` to 0). */
   releaseTime: number;
 };
 
+/** Parameters for the timbre and ADSR envelope of the synth. */
 export interface VoiceParams extends VoiceBaseParams {
+  /** One of `"sine"`, `"sawtooth"`, `"triangle"`, `"square"` or `"custom"` if `periodicWave` is set. */
   type: OscillatorType;
+  /** Custom waveform. */
   periodicWave?: PeriodicWave;
 }
 
+/** Parameters for the timbre, ADSR and voice stack of the synth.*/
 export interface UnisonVoiceParams extends VoiceParams {
+  /** Number of voices to play in unison. */
   stackSize: number;
+  /** Spread of voice frequencies in ±Hertz. */
   spread: number;
 }
 
+/** Parameters for the inharmonic timbre and ADSR of the synth. */
 export interface AperiodicVoiceParams extends VoiceBaseParams {
+  /** Aperiodic wave representing an inharmonic timbre. */
   aperiodicWave: AperiodicWave;
 }
 
@@ -45,7 +59,9 @@ export function defaultParams(): VoiceParams {
 
 export function defaultUnisonParams(): UnisonVoiceParams {
   const result = defaultParams() as UnisonVoiceParams;
-  result.spread = 1.0;
+  result.type = 'sawtooth';
+  result.stackSize = 3;
+  result.spread = 1.5;
   return result;
 }
 
@@ -61,9 +77,9 @@ let VOICE_ID = 1;
  * Oscillator with ADSR envelope.
  * Represents a single "channel" of polyphony. Should be reused for multiple notes.
  */
-class VoiceBase {
+export class VoiceBase {
   age: number;
-  audioContext: BaseAudioContext;
+  context: BaseAudioContext;
   oscillator: OscillatorNode;
   envelope: GainNode;
   log: (msg: string) => void;
@@ -73,18 +89,17 @@ class VoiceBase {
 
   constructor(
     oscillatorClass: typeof OscillatorNode,
-    audioContext: AudioContext,
+    context: AudioContext,
     destination: AudioNode,
     log: (msg: string) => void
   ) {
     this.age = EXPIRED;
-    this.audioContext = audioContext;
+    this.context = context;
 
-    this.oscillator = new oscillatorClass(this.audioContext);
-    this.envelope = this.audioContext.createGain();
+    this.oscillator = new oscillatorClass(this.context);
+    this.envelope = new GainNode(context, {gain: 0});
     this.oscillator.connect(this.envelope).connect(destination);
-    const now = this.audioContext.currentTime;
-    this.envelope.gain.setValueAtTime(0, now);
+    const now = this.context.currentTime;
     this.oscillator.start(now);
     this.oscillator.addEventListener('ended', () => {
       this.envelope.disconnect();
@@ -109,7 +124,7 @@ class VoiceBase {
     this.age = 0;
     this.noteId = noteId;
 
-    const now = this.audioContext.currentTime + params.audioDelay;
+    const now = this.context.currentTime + params.audioDelay;
     this.log(
       `Voice ${this.voiceId}: On time = ${now}, sustain time = ${
         now + params.attackTime
@@ -135,7 +150,7 @@ class VoiceBase {
         return;
       }
       this.age = EXPIRED;
-      const then = this.audioContext.currentTime;
+      const then = this.context.currentTime;
       this.log(`Voice ${this.voiceId}: Off time = ${then}`);
       this.envelope.gain.cancelScheduledValues(then);
       // NOTE: Canceling scheduled values doesn't hold intermediate values of linear ramps
@@ -172,7 +187,7 @@ class VoiceBase {
   }
 }
 
-class Voice extends VoiceBase {
+export class Voice extends VoiceBase {
   constructor(
     audioContext: AudioContext,
     destination: AudioNode,
@@ -206,7 +221,7 @@ class Voice extends VoiceBase {
   }
 }
 
-class UnisonVoice extends VoiceBase {
+export class UnisonVoice extends VoiceBase {
   oscillator!: UnisonOscillator;
 
   constructor(
@@ -223,8 +238,8 @@ class UnisonVoice extends VoiceBase {
     noteId: number,
     params: UnisonVoiceParams
   ) {
-    this.oscillator.numVoices = params.stackSize;
-    const now = this.audioContext.currentTime + params.audioDelay;
+    this.oscillator.numberOfVoices = params.stackSize;
+    const now = this.context.currentTime + params.audioDelay;
     this.oscillator.spread.setValueAtTime(params.spread, now);
 
     if (params.periodicWave) {
@@ -247,7 +262,7 @@ class UnisonVoice extends VoiceBase {
   }
 }
 
-class AperiodicVoice extends VoiceBase {
+export class AperiodicVoice extends VoiceBase {
   oscillator!: AperiodicOscillator;
 
   constructor(
@@ -296,7 +311,7 @@ export class Synth {
     this.voices = [];
   }
 
-  _newVoice(): VoiceBase {
+  protected _newVoice(): VoiceBase {
     return new Voice(this.audioContext, this.destination, this.log);
   }
 
@@ -319,6 +334,12 @@ export class Synth {
     this.setPolyphony(value);
   }
 
+  /**
+   * Start playing a note at the specified frequency and velocity.
+   * @param frequency Frequency in Hertz.
+   * @param velocity Voice amplitude. Recomended range from 0 to 1.
+   * @returns A callback that stops playing the note.
+   */
   noteOn(frequency: number, velocity: number) {
     // Allocate voices based on age.
     // Boils down to:
@@ -344,6 +365,9 @@ export class Synth {
     return oldestVoice.noteOn(frequency, velocity, NOTE_ID++, this.voiceParams);
   }
 
+  /**
+   * Trigger panic and release all notes.
+   */
   allNotesOff() {
     for (const voice of this.voices) {
       if (voice.lastNoteOff !== undefined) {
@@ -353,20 +377,26 @@ export class Synth {
   }
 }
 
+/**
+ * Web audio synth of finite polyphony where the voices are stacked in unison.
+ */
 export class UnisonSynth extends Synth {
   voiceParams?: UnisonVoiceParams;
   voices!: UnisonVoice[];
 
-  _newVoice(): UnisonVoice {
+  protected _newVoice(): UnisonVoice {
     return new UnisonVoice(this.audioContext, this.destination, this.log);
   }
 }
 
+/**
+ * Web audio synth of finite polyphony that supports inharmonic timbres.
+ */
 export class AperiodicSynth extends Synth {
   voiceParams?: AperiodicVoiceParams;
   voices!: AperiodicVoice[];
 
-  _newVoice(): AperiodicVoice {
+  protected _newVoice(): AperiodicVoice {
     return new AperiodicVoice(this.audioContext, this.destination, this.log);
   }
 }
