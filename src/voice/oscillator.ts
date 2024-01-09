@@ -5,6 +5,8 @@ import {
 } from 'aperiodic-oscillator';
 import {VoiceBase, VoiceBaseParams} from './base';
 
+export {AperiodicWave} from 'aperiodic-oscillator';
+
 /** Parameters for the timbre and ADSR envelope of the synth. */
 export interface OscillatorVoiceParams extends VoiceBaseParams {
   /** One of `"sine"`, `"sawtooth"`, `"triangle"`, `"square"` or `"custom"` if `periodicWave` is set. */
@@ -21,9 +23,9 @@ export interface UnisonVoiceParams extends OscillatorVoiceParams {
   spread: number;
 }
 
-/** Parameters for the inharmonic timbre and ADSR of the synth. */
+/** Parameters for the inharmonic timbre and ADSR of the synth. See [aperiodic-oscillator](https://xenharmonic-devs.github.io/aperiodic-oscillator/index.html) documentation for [AperiodicWave](https://xenharmonic-devs.github.io/aperiodic-oscillator/classes/AperiodicWave.html).  */
 export interface AperiodicVoiceParams extends VoiceBaseParams {
-  /** Aperiodic wave representing an inharmonic timbre. */
+  /** [AperiodicWave](https://xenharmonic-devs.github.io/aperiodic-oscillator/classes/AperiodicWave.html) representing an inharmonic timbre.  */
   aperiodicWave: AperiodicWave;
 }
 
