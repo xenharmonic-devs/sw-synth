@@ -37,7 +37,7 @@ export class VoiceBase {
   constructor(
     context: BaseAudioContext,
     destination: AudioNode,
-    log: (msg: string) => void
+    log: (msg: string) => void,
   ) {
     this.age = EXPIRED;
     this.context = context;
@@ -54,10 +54,10 @@ export class VoiceBase {
     frequency: number,
     velocity: number,
     noteId: number,
-    params: VoiceBaseParams
+    params: VoiceBaseParams,
   ) {
     this.log(
-      `Voice ${this.voiceId}: Age = ${this.age}, note = ${noteId}, frequency = ${frequency}`
+      `Voice ${this.voiceId}: Age = ${this.age}, note = ${noteId}, frequency = ${frequency}`,
     );
     this.age = 0;
     this.noteId = noteId;
@@ -66,17 +66,17 @@ export class VoiceBase {
     this.log(
       `Voice ${this.voiceId}: On time = ${now}, sustain time = ${
         now + params.attackTime
-      }`
+      }`,
     );
     this.envelope.gain.setValueAtTime(0, now);
     this.envelope.gain.linearRampToValueAtTime(
       velocity,
-      now + params.attackTime
+      now + params.attackTime,
     );
     this.envelope.gain.setTargetAtTime(
       velocity * params.sustainLevel,
       now + params.attackTime,
-      params.decayTime * TIME_CONSTANT
+      params.decayTime * TIME_CONSTANT,
     );
 
     // Construct a callback that turns this voice off.
@@ -95,13 +95,13 @@ export class VoiceBase {
         // Calculate correct linear ramp hold value
         this.envelope.gain.setValueAtTime(
           (velocity * (then - now)) / params.attackTime,
-          then
+          then,
         );
       }
       this.envelope.gain.setTargetAtTime(
         0,
         then,
-        params.releaseTime * TIME_CONSTANT
+        params.releaseTime * TIME_CONSTANT,
       );
 
       // We're done here.

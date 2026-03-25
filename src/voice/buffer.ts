@@ -3,7 +3,7 @@ import {VoiceBase, VoiceBaseParams} from './base';
 export type BufferFactory = (
   context: BaseAudioContext,
   frequency: number,
-  velocity: number
+  velocity: number,
 ) => AudioBufferSourceNode;
 
 /** Parameters for the audio buffers of the synth. */
@@ -19,7 +19,7 @@ export class BufferVoice extends VoiceBase {
     frequency: number,
     velocity: number,
     noteId: number,
-    params: BufferVoiceParams
+    params: BufferVoiceParams,
   ): () => void {
     // This is not the ideal pattern for AudioBufferSourceNodes, but I've had bad experiences with Web Audio API garbage collection,
     // so I'd like to reuse that GainNode as long as possible...

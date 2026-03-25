@@ -11,7 +11,7 @@ class MockAudioNode {
 }
 
 class MockAudioParam {
-  value: number;
+  value: number = 0;
   setValueAtTime(value: number, startTime: number) {
     this.value = value;
     return this;

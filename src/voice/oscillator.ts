@@ -55,7 +55,7 @@ export class OscillatorVoiceBase extends VoiceBase {
     context: BaseAudioContext,
     destination: AudioNode,
     log: (msg: string) => void,
-    oscillatorClass: typeof OscillatorNode
+    oscillatorClass: typeof OscillatorNode,
   ) {
     super(context, destination, log);
 
@@ -73,7 +73,7 @@ export class OscillatorVoiceBase extends VoiceBase {
     frequency: number,
     velocity: number,
     noteId: number,
-    params: VoiceBaseParams
+    params: VoiceBaseParams,
   ): () => void {
     const now = this.context.currentTime + params.audioDelay;
     this.oscillator.frequency.setValueAtTime(frequency, now);
@@ -95,7 +95,7 @@ export class OscillatorVoice extends OscillatorVoiceBase {
   constructor(
     audioContext: BaseAudioContext,
     destination: AudioNode,
-    log: (msg: string) => void
+    log: (msg: string) => void,
   ) {
     super(audioContext, destination, log, OscillatorNode);
   }
@@ -104,19 +104,19 @@ export class OscillatorVoice extends OscillatorVoiceBase {
     frequency: number,
     velocity: number,
     noteId: number,
-    params: OscillatorVoiceParams
+    params: OscillatorVoiceParams,
   ): () => void {
     if (params.periodicWave) {
       if (params.type !== 'custom') {
         throw new Error(
-          "Oscillator type must be set to 'custom' when periodic wave is used."
+          "Oscillator type must be set to 'custom' when periodic wave is used.",
         );
       }
       this.oscillator.setPeriodicWave(params.periodicWave);
     } else {
       if (params.type === 'custom') {
         throw new Error(
-          "Periodic wave must be given when oscillator type is set to 'custom'"
+          "Periodic wave must be given when oscillator type is set to 'custom'",
         );
       }
       this.oscillator.type = params.type;
@@ -131,7 +131,7 @@ export class UnisonVoice extends OscillatorVoiceBase {
   constructor(
     audioContext: BaseAudioContext,
     destination: AudioNode,
-    log: (msg: string) => void
+    log: (msg: string) => void,
   ) {
     super(audioContext, destination, log, UnisonOscillator);
   }
@@ -140,7 +140,7 @@ export class UnisonVoice extends OscillatorVoiceBase {
     frequency: number,
     velocity: number,
     noteId: number,
-    params: UnisonVoiceParams
+    params: UnisonVoiceParams,
   ) {
     this.oscillator.numberOfVoices = params.stackSize;
     const now = this.context.currentTime + params.audioDelay;
@@ -149,14 +149,14 @@ export class UnisonVoice extends OscillatorVoiceBase {
     if (params.periodicWave) {
       if (params.type !== 'custom') {
         throw new Error(
-          "Oscillator type must be set to 'custom' when periodic wave is used."
+          "Oscillator type must be set to 'custom' when periodic wave is used.",
         );
       }
       this.oscillator.setPeriodicWave(params.periodicWave);
     } else {
       if (params.type === 'custom') {
         throw new Error(
-          "Periodic wave must be given when oscillator type is set to 'custom'"
+          "Periodic wave must be given when oscillator type is set to 'custom'",
         );
       }
       this.oscillator.type = params.type;
@@ -172,7 +172,7 @@ export class AperiodicVoice extends OscillatorVoiceBase {
   constructor(
     audioContext: BaseAudioContext,
     destination: AudioNode,
-    log: (msg: string) => void
+    log: (msg: string) => void,
   ) {
     super(audioContext, destination, log, AperiodicOscillator);
   }
@@ -181,7 +181,7 @@ export class AperiodicVoice extends OscillatorVoiceBase {
     frequency: number,
     velocity: number,
     noteId: number,
-    params: AperiodicVoiceParams
+    params: AperiodicVoiceParams,
   ) {
     this.oscillator.setAperiodicWave(params.aperiodicWave);
     return super.noteOn(frequency, velocity, noteId, params);

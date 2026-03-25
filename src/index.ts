@@ -27,7 +27,7 @@ export class Synth {
   constructor(
     audioContext: BaseAudioContext,
     destination: AudioNode,
-    log?: (msg: string) => void
+    log?: (msg: string) => void,
   ) {
     this.audioContext = audioContext;
     this.destination = destination;
@@ -94,7 +94,7 @@ export class Synth {
 
     if (this.voiceParams === undefined) {
       throw new Error(
-        'Synth.voiceParams must be set before calling Synth.noteOn'
+        'Synth.voiceParams must be set before calling Synth.noteOn',
       );
     }
 
