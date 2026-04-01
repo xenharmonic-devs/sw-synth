@@ -29,12 +29,13 @@ type SynthVoice<VoiceParams extends VoiceBaseParams> = VoiceBase & {
  */
 export class Synth<
   VoiceParams extends VoiceBaseParams = OscillatorVoiceParams,
+  VoiceType extends SynthVoice<VoiceParams> = SynthVoice<VoiceParams>,
 > {
   audioContext: BaseAudioContext;
   destination: AudioNode;
   voiceParams?: VoiceParams;
   log: (msg: string) => void;
-  voices: SynthVoice<VoiceParams>[];
+  voices: VoiceType[];
 
   constructor(
     audioContext: BaseAudioContext,
@@ -53,12 +54,12 @@ export class Synth<
     this.voices = [];
   }
 
-  protected _newVoice(): SynthVoice<VoiceParams> {
+  protected _newVoice(): VoiceType {
     return new OscillatorVoice(
       this.audioContext,
       this.destination,
       this.log,
-    ) as unknown as SynthVoice<VoiceParams>;
+    ) as unknown as VoiceType;
   }
 
   setPolyphony(maxPolyphony: number) {
@@ -84,12 +85,12 @@ export class Synth<
     this.setPolyphony(value);
   }
 
-  protected _allocateVoice(): SynthVoice<VoiceParams> | undefined {
+  protected _allocateVoice(): VoiceType | undefined {
     // Allocate voices based on age.
     // Boils down to:
     // a) Pick the oldest released voice.
     // b) If there are no released voices, replace the oldest currently playing voice.
-    let oldestVoice: SynthVoice<VoiceParams> | undefined;
+    let oldestVoice: VoiceType | undefined;
     for (const voice of this.voices) {
       voice.age++;
       if (oldestVoice === undefined || voice.age > oldestVoice.age) {
@@ -136,7 +137,7 @@ export class Synth<
 /**
  * Web audio synth of finite polyphony where the voices are stacked in unison.
  */
-export class UnisonSynth extends Synth<UnisonVoiceParams> {
+export class UnisonSynth extends Synth<UnisonVoiceParams, UnisonVoice> {
   voiceParams?: UnisonVoiceParams;
   voices!: UnisonVoice[];
 
@@ -148,7 +149,10 @@ export class UnisonSynth extends Synth<UnisonVoiceParams> {
 /**
  * Web audio synth of finite polyphony that supports inharmonic timbres.
  */
-export class AperiodicSynth extends Synth<AperiodicVoiceParams> {
+export class AperiodicSynth extends Synth<
+  AperiodicVoiceParams,
+  AperiodicVoice
+> {
   voiceParams?: AperiodicVoiceParams;
   voices!: AperiodicVoice[];
 
@@ -160,7 +164,7 @@ export class AperiodicSynth extends Synth<AperiodicVoiceParams> {
 /**
  * Web audio synth of finite polyphony with user-provided audio buffers.
  */
-export class BufferSynth extends Synth<BufferVoiceParams> {
+export class BufferSynth extends Synth<BufferVoiceParams, BufferVoice> {
   voiceParams?: BufferVoiceParams;
   voices!: BufferVoice[];
 
