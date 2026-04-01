@@ -69,15 +69,27 @@ export class VoiceBase {
       }`,
     );
     this.envelope.gain.setValueAtTime(0, now);
-    this.envelope.gain.linearRampToValueAtTime(
-      velocity,
-      now + params.attackTime,
-    );
-    this.envelope.gain.setTargetAtTime(
-      velocity * params.sustainLevel,
-      now + params.attackTime,
-      params.decayTime * TIME_CONSTANT,
-    );
+    if (params.attackTime <= 0) {
+      this.envelope.gain.setValueAtTime(velocity, now);
+    } else {
+      this.envelope.gain.linearRampToValueAtTime(
+        velocity,
+        now + params.attackTime,
+      );
+    }
+
+    if (params.decayTime <= 0) {
+      this.envelope.gain.setValueAtTime(
+        velocity * params.sustainLevel,
+        now + params.attackTime,
+      );
+    } else {
+      this.envelope.gain.setTargetAtTime(
+        velocity * params.sustainLevel,
+        now + params.attackTime,
+        params.decayTime * TIME_CONSTANT,
+      );
+    }
 
     // Construct a callback that turns this voice off.
     const noteOff = () => {
@@ -98,11 +110,15 @@ export class VoiceBase {
           then,
         );
       }
-      this.envelope.gain.setTargetAtTime(
-        0,
-        then,
-        params.releaseTime * TIME_CONSTANT,
-      );
+      if (params.releaseTime <= 0) {
+        this.envelope.gain.setValueAtTime(0, then);
+      } else {
+        this.envelope.gain.setTargetAtTime(
+          0,
+          then,
+          params.releaseTime * TIME_CONSTANT,
+        );
+      }
 
       // We're done here.
       this.noteId = -1;

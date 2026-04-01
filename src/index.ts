@@ -1,8 +1,9 @@
-import {VoiceBaseParams, VoiceBase} from './voice/base';
+import {VoiceBase, VoiceBaseParams} from './voice/base';
 import {
   AperiodicVoice,
   AperiodicVoiceParams,
   OscillatorVoice,
+  OscillatorVoiceParams,
   UnisonVoice,
   UnisonVoiceParams,
 } from './voice/oscillator';
@@ -17,10 +18,12 @@ let NOTE_ID = 1;
 /**
  * Simple web audio synth of finite polyphony.
  */
-export class Synth {
+export class Synth<
+  VoiceParams extends VoiceBaseParams = OscillatorVoiceParams,
+> {
   audioContext: BaseAudioContext;
   destination: AudioNode;
-  voiceParams?: VoiceBaseParams;
+  voiceParams?: VoiceParams;
   log: (msg: string) => void;
   voices: VoiceBase[];
 
@@ -102,7 +105,12 @@ export class Synth {
       );
     }
 
-    return oldestVoice.noteOn(frequency, velocity, NOTE_ID++, this.voiceParams);
+    return oldestVoice.noteOn(
+      frequency,
+      velocity,
+      NOTE_ID++,
+      this.voiceParams as VoiceBaseParams,
+    );
   }
 
   /**
@@ -120,7 +128,7 @@ export class Synth {
 /**
  * Web audio synth of finite polyphony where the voices are stacked in unison.
  */
-export class UnisonSynth extends Synth {
+export class UnisonSynth extends Synth<UnisonVoiceParams> {
   voiceParams?: UnisonVoiceParams;
   voices!: UnisonVoice[];
 
@@ -132,7 +140,7 @@ export class UnisonSynth extends Synth {
 /**
  * Web audio synth of finite polyphony that supports inharmonic timbres.
  */
-export class AperiodicSynth extends Synth {
+export class AperiodicSynth extends Synth<AperiodicVoiceParams> {
   voiceParams?: AperiodicVoiceParams;
   voices!: AperiodicVoice[];
 
@@ -144,7 +152,7 @@ export class AperiodicSynth extends Synth {
 /**
  * Web audio synth of finite polyphony with user-provided audio buffers.
  */
-export class BufferSynth extends Synth {
+export class BufferSynth extends Synth<BufferVoiceParams> {
   voiceParams?: BufferVoiceParams;
   voices!: BufferVoice[];
 

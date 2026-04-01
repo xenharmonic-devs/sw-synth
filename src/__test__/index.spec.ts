@@ -8,12 +8,25 @@ class MockAudioNode {
   connect(destinationNode: AudioNode) {
     return destinationNode;
   }
+
+  disconnect(destinationNode?: AudioNode) {}
 }
 
 class MockAudioParam {
   value: number = 0;
   setValueAtTime(value: number, startTime: number) {
     this.value = value;
+    return this;
+  }
+  linearRampToValueAtTime(value: number, endTime: number) {
+    this.value = value;
+    return this;
+  }
+  setTargetAtTime(target: number, startTime: number, timeConstant: number) {
+    this.value = target;
+    return this;
+  }
+  cancelScheduledValues(cancelTime: number) {
     return this;
   }
 }
@@ -31,10 +44,12 @@ class MockConstantSourceNode extends MockAudioNode {
 class MockOscillatorNode extends MockAudioNode {
   type: OscillatorType = 'sine';
   detune: MockAudioParam;
+  frequency: MockAudioParam;
 
   constructor(context: MockAudioContext) {
     super(context);
     this.detune = new MockAudioParam();
+    this.frequency = new MockAudioParam();
   }
 
   setPeriodicWave(wave: PeriodicWave) {}
@@ -42,6 +57,7 @@ class MockOscillatorNode extends MockAudioNode {
   addEventListener(type: 'ended', listener: () => void) {}
 
   start(when: number) {}
+  stop(when?: number) {}
 }
 
 class MockGainNode extends MockAudioNode {
@@ -79,5 +95,21 @@ describe('Oscillator Synth', () => {
   it('rejects non-integer max polyphony values', () => {
     const synth = new Synth(context, context.destination);
     expect(() => synth.setPolyphony(1.5)).toThrow('Invalid max polyphony');
+  });
+
+  it('handles zero attack/decay/release envelope times', () => {
+    const synth = new Synth(context, context.destination);
+    synth.maxPolyphony = 1;
+    synth.voiceParams = {
+      audioDelay: 0,
+      type: 'sine',
+      attackTime: 0,
+      decayTime: 0,
+      sustainLevel: 0.8,
+      releaseTime: 0,
+    };
+
+    const noteOff = synth.noteOn(440, 0.5);
+    expect(() => noteOff()).not.toThrow();
   });
 });
