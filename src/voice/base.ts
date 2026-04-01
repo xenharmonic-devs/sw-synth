@@ -99,7 +99,7 @@ export class VoiceBase {
         return;
       }
       this.age = EXPIRED;
-      const then = this.context.currentTime;
+      const then = this.context.currentTime + params.audioDelay;
       this.log(`Voice ${this.voiceId}: Off time = ${then}`);
       this.envelope.gain.cancelScheduledValues(then);
       // NOTE: Canceling scheduled values doesn't hold intermediate values of linear ramps
