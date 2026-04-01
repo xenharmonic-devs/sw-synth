@@ -15,6 +15,15 @@ export * from './voice';
 // but who is going to play 9007199254740991 notes in one session?
 let NOTE_ID = 1;
 
+type SynthVoice<VoiceParams extends VoiceBaseParams> = VoiceBase & {
+  noteOn: (
+    frequency: number,
+    velocity: number,
+    noteId: number,
+    params: VoiceParams,
+  ) => () => void;
+};
+
 /**
  * Simple web audio synth of finite polyphony.
  */
@@ -25,7 +34,7 @@ export class Synth<
   destination: AudioNode;
   voiceParams?: VoiceParams;
   log: (msg: string) => void;
-  voices: VoiceBase[];
+  voices: SynthVoice<VoiceParams>[];
 
   constructor(
     audioContext: BaseAudioContext,
@@ -44,8 +53,12 @@ export class Synth<
     this.voices = [];
   }
 
-  protected _newVoice(): VoiceBase {
-    return new OscillatorVoice(this.audioContext, this.destination, this.log);
+  protected _newVoice(): SynthVoice<VoiceParams> {
+    return new OscillatorVoice(
+      this.audioContext,
+      this.destination,
+      this.log,
+    ) as unknown as SynthVoice<VoiceParams>;
   }
 
   setPolyphony(maxPolyphony: number) {
@@ -71,12 +84,12 @@ export class Synth<
     this.setPolyphony(value);
   }
 
-  protected _allocateVoice() {
+  protected _allocateVoice(): SynthVoice<VoiceParams> | undefined {
     // Allocate voices based on age.
     // Boils down to:
     // a) Pick the oldest released voice.
     // b) If there are no released voices, replace the oldest currently playing voice.
-    let oldestVoice: VoiceBase | undefined;
+    let oldestVoice: SynthVoice<VoiceParams> | undefined;
     for (const voice of this.voices) {
       voice.age++;
       if (oldestVoice === undefined || voice.age > oldestVoice.age) {
@@ -105,12 +118,7 @@ export class Synth<
       );
     }
 
-    return oldestVoice.noteOn(
-      frequency,
-      velocity,
-      NOTE_ID++,
-      this.voiceParams as VoiceBaseParams,
-    );
+    return oldestVoice.noteOn(frequency, velocity, NOTE_ID++, this.voiceParams);
   }
 
   /**
