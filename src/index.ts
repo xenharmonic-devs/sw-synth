@@ -82,7 +82,7 @@ export class Synth {
   /**
    * Start playing a note at the specified frequency and velocity.
    * @param frequency Frequency in Hertz.
-   * @param velocity Voice amplitude. Recomended range from 0 to 1.
+   * @param velocity Voice amplitude. Recommended range is 0 to 1.
    * @returns A callback that stops playing the note.
    */
   noteOn(frequency: number, velocity: number) {

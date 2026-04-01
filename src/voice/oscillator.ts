@@ -15,7 +15,7 @@ export interface OscillatorVoiceParams extends VoiceBaseParams {
   periodicWave?: PeriodicWave;
 }
 
-/** Parameters for the timbre, ADSR and voice stack of the synth.*/
+/** Parameters for the timbre, ADSR envelope, and voice stack of the synth. */
 export interface UnisonVoiceParams extends OscillatorVoiceParams {
   /** Number of voices to play in unison. */
   stackSize: number;
@@ -23,12 +23,13 @@ export interface UnisonVoiceParams extends OscillatorVoiceParams {
   spread: number;
 }
 
-/** Parameters for the inharmonic timbre and ADSR of the synth. See [aperiodic-oscillator](https://xenharmonic-devs.github.io/aperiodic-oscillator/index.html) documentation for [AperiodicWave](https://xenharmonic-devs.github.io/aperiodic-oscillator/classes/AperiodicWave.html).  */
+/** Parameters for the inharmonic timbre and ADSR envelope of the synth. See [aperiodic-oscillator](https://xenharmonic-devs.github.io/aperiodic-oscillator/index.html) documentation for [AperiodicWave](https://xenharmonic-devs.github.io/aperiodic-oscillator/classes/AperiodicWave.html). */
 export interface AperiodicVoiceParams extends VoiceBaseParams {
-  /** [AperiodicWave](https://xenharmonic-devs.github.io/aperiodic-oscillator/classes/AperiodicWave.html) representing an inharmonic timbre.  */
+  /** [AperiodicWave](https://xenharmonic-devs.github.io/aperiodic-oscillator/classes/AperiodicWave.html) representing an inharmonic timbre. */
   aperiodicWave: AperiodicWave;
 }
 
+/** Returns default parameters for {@link OscillatorVoice}. */
 export function defaultParams(): OscillatorVoiceParams {
   return {
     audioDelay: 0.001,
@@ -40,6 +41,7 @@ export function defaultParams(): OscillatorVoiceParams {
   };
 }
 
+/** Returns default parameters for {@link UnisonVoice}. */
 export function defaultUnisonParams(): UnisonVoiceParams {
   const result = defaultParams() as UnisonVoiceParams;
   result.type = 'sawtooth';
