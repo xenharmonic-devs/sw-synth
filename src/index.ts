@@ -1,9 +1,8 @@
-import {VoiceBase, VoiceBaseParams} from './voice/base';
+import {VoiceBase} from './voice/base';
 import {
   AperiodicVoice,
   AperiodicVoiceParams,
   OscillatorVoice,
-  OscillatorVoiceParams,
   UnisonVoice,
   UnisonVoiceParams,
 } from './voice/oscillator';
@@ -15,25 +14,17 @@ export * from './voice';
 // but who is going to play 9007199254740991 notes in one session?
 let NOTE_ID = 1;
 
-type SynthVoice<VoiceParams extends VoiceBaseParams> = VoiceBase & {
-  noteOn: (
-    frequency: number,
-    velocity: number,
-    noteId: number,
-    params: VoiceParams,
-  ) => () => void;
-};
+type VoiceParamsOf<VoiceType extends VoiceBase> = Parameters<
+  VoiceType['noteOn']
+>[3];
 
 /**
  * Simple web audio synth of finite polyphony.
  */
-export class Synth<
-  VoiceParams extends VoiceBaseParams = OscillatorVoiceParams,
-  VoiceType extends SynthVoice<VoiceParams> = SynthVoice<VoiceParams>,
-> {
+export class Synth<VoiceType extends VoiceBase = OscillatorVoice> {
   audioContext: BaseAudioContext;
   destination: AudioNode;
-  voiceParams?: VoiceParams;
+  voiceParams?: VoiceParamsOf<VoiceType>;
   log: (msg: string) => void;
   voices: VoiceType[];
 
@@ -137,7 +128,7 @@ export class Synth<
 /**
  * Web audio synth of finite polyphony where the voices are stacked in unison.
  */
-export class UnisonSynth extends Synth<UnisonVoiceParams, UnisonVoice> {
+export class UnisonSynth extends Synth<UnisonVoice> {
   voiceParams?: UnisonVoiceParams;
   voices!: UnisonVoice[];
 
@@ -149,10 +140,7 @@ export class UnisonSynth extends Synth<UnisonVoiceParams, UnisonVoice> {
 /**
  * Web audio synth of finite polyphony that supports inharmonic timbres.
  */
-export class AperiodicSynth extends Synth<
-  AperiodicVoiceParams,
-  AperiodicVoice
-> {
+export class AperiodicSynth extends Synth<AperiodicVoice> {
   voiceParams?: AperiodicVoiceParams;
   voices!: AperiodicVoice[];
 
@@ -164,7 +152,7 @@ export class AperiodicSynth extends Synth<
 /**
  * Web audio synth of finite polyphony with user-provided audio buffers.
  */
-export class BufferSynth extends Synth<BufferVoiceParams, BufferVoice> {
+export class BufferSynth extends Synth<BufferVoice> {
   voiceParams?: BufferVoiceParams;
   voices!: BufferVoice[];
 
