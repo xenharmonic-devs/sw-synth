@@ -14,6 +14,7 @@ class MockAudioNode {
 
 class MockAudioParam {
   value: number = 0;
+  cancelTime?: number;
   setValueAtTime(value: number, startTime: number) {
     this.value = value;
     return this;
@@ -27,6 +28,7 @@ class MockAudioParam {
     return this;
   }
   cancelScheduledValues(cancelTime: number) {
+    this.cancelTime = cancelTime;
     return this;
   }
 }
@@ -111,5 +113,25 @@ describe('Oscillator Synth', () => {
 
     const noteOff = synth.noteOn(440, 0.5);
     expect(() => noteOff()).not.toThrow();
+  });
+
+  it('applies audioDelay when releasing notes', () => {
+    const synth = new Synth(context, context.destination);
+    synth.maxPolyphony = 1;
+    synth.voiceParams = {
+      audioDelay: 0.25,
+      type: 'sine',
+      attackTime: 0.01,
+      decayTime: 0.1,
+      sustainLevel: 0.8,
+      releaseTime: 0.1,
+    };
+
+    const noteOff = synth.noteOn(440, 0.5);
+    (context as unknown as MockAudioContext).currentTime = 1;
+    noteOff();
+
+    const gain = synth.voices[0].envelope.gain as unknown as MockAudioParam;
+    expect(gain.cancelTime).toBeCloseTo(1.25);
   });
 });
