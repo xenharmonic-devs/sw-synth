@@ -14,7 +14,8 @@ export * from './voice';
 // but who is going to play 9007199254740991 notes in one session?
 let NOTE_ID = 1;
 
-type VoiceParamsOf<VoiceType extends VoiceBase> = Parameters<
+/** Infers the `noteOn` parameter type for a given voice type. */
+export type VoiceParamsOf<VoiceType extends VoiceBase> = Parameters<
   VoiceType['noteOn']
 >[3];
 

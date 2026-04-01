@@ -58,5 +58,12 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     }
+  },
+  "typedocOptions": {
+    "externalSymbolLinkMappings": {
+      "aperiodic-oscillator": {
+        "AperiodicOscillator": "https://xenharmonic-devs.github.io/aperiodic-oscillator/classes/AperiodicOscillator.html"
+      }
+    }
   }
 }
