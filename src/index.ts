@@ -46,7 +46,11 @@ export class Synth {
   }
 
   setPolyphony(maxPolyphony: number) {
-    if (maxPolyphony < 0 || maxPolyphony === Infinity || isNaN(maxPolyphony)) {
+    if (
+      !Number.isFinite(maxPolyphony) ||
+      maxPolyphony < 0 ||
+      !Number.isInteger(maxPolyphony)
+    ) {
       throw new Error('Invalid max polyphony');
     }
     while (this.voices.length > maxPolyphony) {

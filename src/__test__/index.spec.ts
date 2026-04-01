@@ -75,4 +75,9 @@ describe('Oscillator Synth', () => {
     synth.maxPolyphony = 3;
     expect(synth.voices).toHaveLength(3);
   });
+
+  it('rejects non-integer max polyphony values', () => {
+    const synth = new Synth(context, context.destination);
+    expect(() => synth.setPolyphony(1.5)).toThrow('Invalid max polyphony');
+  });
 });
