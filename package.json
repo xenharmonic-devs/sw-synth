@@ -40,7 +40,7 @@
     "doc": "typedoc src/index.ts --name sw-synth"
   },
   "dependencies": {
-    "aperiodic-oscillator": "^0.1.1"
+    "aperiodic-oscillator": "^0.2.0"
   },
   "devDependencies": {
     "@types/jsdom": "^28.0.1",
@@ -49,6 +49,6 @@
     "jsdom": "^29.0.1",
     "typedoc": "^0.28.18",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.1"
+    "vitest": "^4.1.2"
   }
 }
