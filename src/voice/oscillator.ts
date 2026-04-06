@@ -3,7 +3,7 @@ import {
   AperiodicWave,
   UnisonOscillator,
 } from 'aperiodic-oscillator';
-import {VoiceBase, VoiceBaseParams} from './base';
+import {VoiceBase, VoiceBaseParams} from './base.js';
 
 export {AperiodicWave} from 'aperiodic-oscillator';
 

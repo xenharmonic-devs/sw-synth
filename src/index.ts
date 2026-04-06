@@ -1,13 +1,13 @@
-import {VoiceBase} from './voice/base';
+import {VoiceBase} from './voice/base.js';
 import {
   AperiodicVoice,
   AperiodicVoiceParams,
   OscillatorVoice,
   UnisonVoice,
   UnisonVoiceParams,
-} from './voice/oscillator';
-import {BufferVoice, BufferVoiceParams} from './voice/buffer';
-export * from './voice';
+} from './voice/oscillator.js';
+import {BufferVoice, BufferVoiceParams} from './voice/buffer.js';
+export * from './voice/index.js';
 
 // Tracking numbers for voice stealing
 // Technically we could run out of note identifiers,
