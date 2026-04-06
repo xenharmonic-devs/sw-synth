@@ -1,3 +1,3 @@
-export * from './base';
-export * from './buffer';
-export * from './oscillator';
+export * from './base.js';
+export * from './buffer.js';
+export * from './oscillator.js';

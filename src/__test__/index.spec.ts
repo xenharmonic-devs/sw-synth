@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import {describe, it, expect, vi} from 'vitest';
-import {Synth} from '..';
+import {Synth} from '../index.js';
 
 class MockAudioNode {
   constructor(context: MockAudioContext) {}

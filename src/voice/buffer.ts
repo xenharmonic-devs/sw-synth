@@ -1,4 +1,4 @@
-import {VoiceBase, VoiceBaseParams} from './base';
+import {VoiceBase, VoiceBaseParams} from './base.js';
 
 export type BufferFactory = (
   context: BaseAudioContext,
