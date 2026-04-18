@@ -3,7 +3,7 @@ import {
   AperiodicWave,
   UnisonOscillator,
 } from 'aperiodic-oscillator';
-import {VoiceBase, VoiceBaseParams} from './base.js';
+import {PitchBendWeights, VoiceBase, VoiceBaseParams} from './base.js';
 
 export {AperiodicWave} from 'aperiodic-oscillator';
 
@@ -52,6 +52,8 @@ export function defaultUnisonParams(): UnisonVoiceParams {
 
 export class OscillatorVoiceBase extends VoiceBase {
   oscillator: OscillatorNode;
+  positivePitchBendGain: GainNode;
+  negativePitchBendGain: GainNode;
 
   constructor(
     context: BaseAudioContext,
@@ -63,6 +65,31 @@ export class OscillatorVoiceBase extends VoiceBase {
 
     this.oscillator = new oscillatorClass(this.context);
     this.oscillator.connect(this.envelope);
+
+    // Piecewise linear transform:
+    // detune = max(0, bend) * up + min(0, bend) * down.
+    // bend is expected in [-1, 1], gains are expressed in cents.
+    const positiveBendShaper = new WaveShaperNode(this.context, {
+      curve: createPiecewiseCurve(x => Math.max(0, x)),
+      oversample: 'none',
+    });
+    const negativeBendShaper = new WaveShaperNode(this.context, {
+      curve: createPiecewiseCurve(x => Math.min(0, x)),
+      oversample: 'none',
+    });
+    this.positivePitchBendGain = new GainNode(this.context, {gain: 0});
+    this.negativePitchBendGain = new GainNode(this.context, {gain: 0});
+    positiveBendShaper.connect(this.positivePitchBendGain);
+    negativeBendShaper.connect(this.negativePitchBendGain);
+    this.positivePitchBendGain.connect(this.oscillator.detune);
+    this.negativePitchBendGain.connect(this.oscillator.detune);
+
+    const pitchBendSource = new ConstantSourceNode(this.context, {offset: 0});
+    pitchBendSource.connect(positiveBendShaper);
+    pitchBendSource.connect(negativeBendShaper);
+    pitchBendSource.start();
+    this.pitchBend = pitchBendSource.offset;
+
     const now = this.context.currentTime;
     this.oscillator.start(now);
     this.oscillator.addEventListener('ended', () => {
@@ -76,10 +103,15 @@ export class OscillatorVoiceBase extends VoiceBase {
     velocity: number,
     noteId: number,
     params: VoiceBaseParams,
+    pitchBendWeights?: PitchBendWeights,
   ): () => void {
     const now = this.context.currentTime + params.audioDelay;
     this.oscillator.frequency.setValueAtTime(frequency, now);
-    return super.noteOn(frequency, velocity, noteId, params);
+    const up = pitchBendWeights?.up ?? 0;
+    const down = pitchBendWeights?.down ?? 0;
+    this.positivePitchBendGain.gain.setValueAtTime(up, now);
+    this.negativePitchBendGain.gain.setValueAtTime(down, now);
+    return super.noteOn(frequency, velocity, noteId, params, pitchBendWeights);
   }
 
   dispose() {
@@ -91,6 +123,16 @@ export class OscillatorVoiceBase extends VoiceBase {
       this.oscillator.dispose();
     }
   }
+}
+
+function createPiecewiseCurve(fn: (x: number) => number) {
+  const size = 2048;
+  const curve = new Float32Array(size);
+  for (let i = 0; i < size; i++) {
+    const x = (2 * i) / (size - 1) - 1;
+    curve[i] = fn(x);
+  }
+  return curve;
 }
 
 export class OscillatorVoice extends OscillatorVoiceBase {
@@ -107,6 +149,7 @@ export class OscillatorVoice extends OscillatorVoiceBase {
     velocity: number,
     noteId: number,
     params: OscillatorVoiceParams,
+    pitchBendWeights?: PitchBendWeights,
   ): () => void {
     if (params.periodicWave) {
       if (params.type !== 'custom') {
@@ -123,7 +166,7 @@ export class OscillatorVoice extends OscillatorVoiceBase {
       }
       this.oscillator.type = params.type;
     }
-    return super.noteOn(frequency, velocity, noteId, params);
+    return super.noteOn(frequency, velocity, noteId, params, pitchBendWeights);
   }
 }
 
@@ -143,6 +186,7 @@ export class UnisonVoice extends OscillatorVoiceBase {
     velocity: number,
     noteId: number,
     params: UnisonVoiceParams,
+    pitchBendWeights?: PitchBendWeights,
   ) {
     this.oscillator.numberOfVoices = params.stackSize;
     const now = this.context.currentTime + params.audioDelay;
@@ -164,7 +208,7 @@ export class UnisonVoice extends OscillatorVoiceBase {
       this.oscillator.type = params.type;
     }
 
-    return super.noteOn(frequency, velocity, noteId, params);
+    return super.noteOn(frequency, velocity, noteId, params, pitchBendWeights);
   }
 }
 
@@ -184,8 +228,9 @@ export class AperiodicVoice extends OscillatorVoiceBase {
     velocity: number,
     noteId: number,
     params: AperiodicVoiceParams,
+    pitchBendWeights?: PitchBendWeights,
   ) {
     this.oscillator.setAperiodicWave(params.aperiodicWave);
-    return super.noteOn(frequency, velocity, noteId, params);
+    return super.noteOn(frequency, velocity, noteId, params, pitchBendWeights);
   }
 }

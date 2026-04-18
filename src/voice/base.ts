@@ -18,6 +18,14 @@ export type VoiceBaseParams = {
   releaseTime: number;
 };
 
+/** Per-note pitch bend weights in cents for each bend direction. */
+export type PitchBendWeights = {
+  /** Maximum downward bend in cents when pitch bend is -1. */
+  down: number;
+  /** Maximum upward bend in cents when pitch bend is +1. */
+  up: number;
+};
+
 // Tracking numbers for logging purposes
 let VOICE_ID = 1;
 
@@ -33,6 +41,7 @@ export class VoiceBase {
   noteId: number;
   voiceId: number;
   lastNoteOff?: () => void;
+  pitchBend?: AudioParam;
 
   constructor(
     context: BaseAudioContext,
@@ -55,7 +64,9 @@ export class VoiceBase {
     velocity: number,
     noteId: number,
     params: VoiceBaseParams,
+    pitchBendWeights?: PitchBendWeights,
   ) {
+    void pitchBendWeights;
     this.log(
       `Voice ${this.voiceId}: Age = ${this.age}, note = ${noteId}, frequency = ${frequency}`,
     );

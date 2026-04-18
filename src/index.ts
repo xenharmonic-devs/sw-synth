@@ -14,6 +14,14 @@ export * from './voice/index.js';
 // but who is going to play 9007199254740991 notes in one session?
 let NOTE_ID = 1;
 
+/** Per-note asymmetric pitch-bend range in cents. */
+export interface PitchBendRange {
+  /** Maximum downward bend in cents at pitch bend = -1. */
+  down: number;
+  /** Maximum upward bend in cents at pitch bend = +1. */
+  up: number;
+}
+
 /** Infers the `noteOn` parameter type for a given voice type. */
 export type VoiceParamsOf<VoiceType extends VoiceBase> = Parameters<
   VoiceType['noteOn']
@@ -26,6 +34,8 @@ export class Synth<VoiceType extends VoiceBase = OscillatorVoice> {
   audioContext: BaseAudioContext;
   destination: AudioNode;
   voiceParams?: VoiceParamsOf<VoiceType>;
+  pitchBendNode: ConstantSourceNode;
+  pitchBend: AudioParam;
   log: (msg: string) => void;
   voices: VoiceType[];
 
@@ -44,6 +54,9 @@ export class Synth<VoiceType extends VoiceBase = OscillatorVoice> {
     }
 
     this.voices = [];
+    this.pitchBendNode = new ConstantSourceNode(this.audioContext, {offset: 0});
+    this.pitchBend = this.pitchBendNode.offset;
+    this.pitchBendNode.start();
   }
 
   protected _newVoice(): VoiceType {
@@ -63,10 +76,18 @@ export class Synth<VoiceType extends VoiceBase = OscillatorVoice> {
       throw new Error('Invalid max polyphony');
     }
     while (this.voices.length > maxPolyphony) {
-      this.voices.pop()!.dispose();
+      const voice = this.voices.pop()!;
+      if (voice.pitchBend) {
+        this.pitchBendNode.disconnect(voice.pitchBend);
+      }
+      voice.dispose();
     }
     while (this.voices.length < maxPolyphony) {
-      this.voices.push(this._newVoice());
+      const voice = this._newVoice();
+      if (voice.pitchBend) {
+        this.pitchBendNode.connect(voice.pitchBend);
+      }
+      this.voices.push(voice);
     }
   }
 
@@ -98,7 +119,7 @@ export class Synth<VoiceType extends VoiceBase = OscillatorVoice> {
    * @param velocity Voice amplitude. Recommended range is 0 to 1.
    * @returns A callback that stops playing the note.
    */
-  noteOn(frequency: number, velocity: number) {
+  noteOn(frequency: number, velocity: number, pitchBendRange?: PitchBendRange) {
     const oldestVoice = this._allocateVoice();
 
     if (oldestVoice === undefined) {
@@ -111,7 +132,13 @@ export class Synth<VoiceType extends VoiceBase = OscillatorVoice> {
       );
     }
 
-    return oldestVoice.noteOn(frequency, velocity, NOTE_ID++, this.voiceParams);
+    return oldestVoice.noteOn(
+      frequency,
+      velocity,
+      NOTE_ID++,
+      this.voiceParams,
+      pitchBendRange,
+    );
   }
 
   /**
