@@ -163,7 +163,8 @@ describe('Oscillator Synth', () => {
     const voice = synth.voices[0];
     expect(voice.pitchBend).toBeDefined();
     expect(
-      (synth.pitchBendNode as unknown as MockConstantSourceNode).connections,
+      (synth as unknown as {pitchBendNode: MockConstantSourceNode})
+        .pitchBendNode.connections,
     ).toContain(voice.pitchBend);
   });
 

@@ -34,7 +34,7 @@ export class Synth<VoiceType extends VoiceBase = OscillatorVoice> {
   audioContext: BaseAudioContext;
   destination: AudioNode;
   voiceParams?: VoiceParamsOf<VoiceType>;
-  pitchBendNode: ConstantSourceNode;
+  private pitchBendNode: ConstantSourceNode;
   pitchBend: AudioParam;
   log: (msg: string) => void;
   voices: VoiceType[];
