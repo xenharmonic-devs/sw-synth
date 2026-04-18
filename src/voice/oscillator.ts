@@ -52,8 +52,7 @@ export function defaultUnisonParams(): UnisonVoiceParams {
 
 export class OscillatorVoiceBase extends VoiceBase {
   oscillator: OscillatorNode;
-  positivePitchBendGain: GainNode;
-  negativePitchBendGain: GainNode;
+  pitchBendShaper: WaveShaperNode;
 
   constructor(
     context: BaseAudioContext,
@@ -67,26 +66,16 @@ export class OscillatorVoiceBase extends VoiceBase {
     this.oscillator.connect(this.envelope);
 
     // Piecewise linear transform:
-    // detune = max(0, bend) * up + min(0, bend) * down.
-    // bend is expected in [-1, 1], gains are expressed in cents.
-    const positiveBendShaper = new WaveShaperNode(this.context, {
-      curve: createPiecewiseCurve(x => Math.max(0, x)),
+    // detune = bend < 0 ? bend * down : bend * up.
+    // bend is expected in [-1, 1], and down/up are cents.
+    this.pitchBendShaper = new WaveShaperNode(this.context, {
+      curve: createAsymmetricCurve(0, 0),
       oversample: 'none',
     });
-    const negativeBendShaper = new WaveShaperNode(this.context, {
-      curve: createPiecewiseCurve(x => Math.min(0, x)),
-      oversample: 'none',
-    });
-    this.positivePitchBendGain = new GainNode(this.context, {gain: 0});
-    this.negativePitchBendGain = new GainNode(this.context, {gain: 0});
-    positiveBendShaper.connect(this.positivePitchBendGain);
-    negativeBendShaper.connect(this.negativePitchBendGain);
-    this.positivePitchBendGain.connect(this.oscillator.detune);
-    this.negativePitchBendGain.connect(this.oscillator.detune);
+    this.pitchBendShaper.connect(this.oscillator.detune);
 
     const pitchBendSource = new ConstantSourceNode(this.context, {offset: 0});
-    pitchBendSource.connect(positiveBendShaper);
-    pitchBendSource.connect(negativeBendShaper);
+    pitchBendSource.connect(this.pitchBendShaper);
     pitchBendSource.start();
     this.pitchBend = pitchBendSource.offset;
 
@@ -109,8 +98,7 @@ export class OscillatorVoiceBase extends VoiceBase {
     this.oscillator.frequency.setValueAtTime(frequency, now);
     const up = pitchBendWeights?.up ?? 0;
     const down = pitchBendWeights?.down ?? 0;
-    this.positivePitchBendGain.gain.setValueAtTime(up, now);
-    this.negativePitchBendGain.gain.setValueAtTime(down, now);
+    this.pitchBendShaper.curve = createAsymmetricCurve(down, up);
     return super.noteOn(frequency, velocity, noteId, params, pitchBendWeights);
   }
 
@@ -125,12 +113,12 @@ export class OscillatorVoiceBase extends VoiceBase {
   }
 }
 
-function createPiecewiseCurve(fn: (x: number) => number) {
+function createAsymmetricCurve(down: number, up: number) {
   const size = 2048;
   const curve = new Float32Array(size);
   for (let i = 0; i < size; i++) {
     const x = (2 * i) / (size - 1) - 1;
-    curve[i] = fn(x);
+    curve[i] = x < 0 ? x * down : x * up;
   }
   return curve;
 }
