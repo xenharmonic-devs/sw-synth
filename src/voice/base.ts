@@ -41,7 +41,7 @@ export class VoiceBase {
   noteId: number;
   voiceId: number;
   lastNoteOff?: () => void;
-  pitchBend?: AudioParam;
+  pitchBend?: AudioNode;
 
   constructor(
     context: BaseAudioContext,

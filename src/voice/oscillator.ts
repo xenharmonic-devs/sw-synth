@@ -73,11 +73,7 @@ export class OscillatorVoiceBase extends VoiceBase {
       oversample: 'none',
     });
     this.pitchBendShaper.connect(this.oscillator.detune);
-
-    const pitchBendSource = new ConstantSourceNode(this.context, {offset: 0});
-    pitchBendSource.connect(this.pitchBendShaper);
-    pitchBendSource.start();
-    this.pitchBend = pitchBendSource.offset;
+    this.pitchBend = this.pitchBendShaper;
 
     const now = this.context.currentTime;
     this.oscillator.start(now);
