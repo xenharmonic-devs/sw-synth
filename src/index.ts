@@ -1,4 +1,4 @@
-import {VoiceBase} from './voice/base.js';
+import {VoiceBase, PitchBendRange} from './voice/base.js';
 import {
   AperiodicVoice,
   AperiodicVoiceParams,
@@ -13,14 +13,6 @@ export * from './voice/index.js';
 // Technically we could run out of note identifiers,
 // but who is going to play 9007199254740991 notes in one session?
 let NOTE_ID = 1;
-
-/** Per-note asymmetric pitch-bend range in cents. */
-export interface PitchBendRange {
-  /** Maximum downward bend in cents at pitch bend = -1. */
-  down: number;
-  /** Maximum upward bend in cents at pitch bend = +1. */
-  up: number;
-}
 
 /** Infers the `noteOn` parameter type for a given voice type. */
 export type VoiceParamsOf<VoiceType extends VoiceBase> = Parameters<

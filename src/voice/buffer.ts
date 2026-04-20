@@ -1,4 +1,4 @@
-import {PitchBendWeights, VoiceBase, VoiceBaseParams} from './base.js';
+import {PitchBendRange, VoiceBase, VoiceBaseParams} from './base.js';
 
 export type BufferFactory = (
   context: BaseAudioContext,
@@ -20,7 +20,7 @@ export class BufferVoice extends VoiceBase {
     velocity: number,
     noteId: number,
     params: BufferVoiceParams,
-    pitchBendWeights?: PitchBendWeights,
+    pitchBendRange?: PitchBendRange,
   ): () => void {
     // This is not the ideal pattern for AudioBufferSourceNodes, but I've had bad experiences with Web Audio API garbage collection,
     // so I'd like to reuse that GainNode as long as possible...
@@ -29,8 +29,10 @@ export class BufferVoice extends VoiceBase {
     }
 
     const node = params.factory(this.context, frequency, velocity);
+    this.pitchBend.connect(node.detune);
     node.connect(this.envelope);
     node.addEventListener('ended', () => {
+      this.pitchBend.disconnect(node);
       node.disconnect(this.envelope);
     });
 
@@ -44,7 +46,7 @@ export class BufferVoice extends VoiceBase {
       velocity,
       noteId,
       params,
-      pitchBendWeights,
+      pitchBendRange,
     );
     return () => {
       noteOff();

@@ -183,7 +183,7 @@ describe('Oscillator Synth', () => {
     synth.noteOn(440, 0.5, {down: 175, up: 275});
     const voice = synth.voices[0];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const curve = (voice as any).pitchBendShaper.curve as Float32Array;
+    const curve = (voice as any).pitchBend.curve as Float32Array;
     expect(curve[0]).toBeCloseTo(-175, 0);
     expect(curve[curve.length - 1]).toBeCloseTo(275, 0);
   });

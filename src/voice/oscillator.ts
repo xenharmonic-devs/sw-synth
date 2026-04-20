@@ -3,7 +3,7 @@ import {
   AperiodicWave,
   UnisonOscillator,
 } from 'aperiodic-oscillator';
-import {PitchBendWeights, VoiceBase, VoiceBaseParams} from './base.js';
+import {PitchBendRange, VoiceBase, VoiceBaseParams} from './base.js';
 
 export {AperiodicWave} from 'aperiodic-oscillator';
 
@@ -52,7 +52,6 @@ export function defaultUnisonParams(): UnisonVoiceParams {
 
 export class OscillatorVoiceBase extends VoiceBase {
   oscillator: OscillatorNode;
-  pitchBendShaper: WaveShaperNode;
 
   constructor(
     context: BaseAudioContext,
@@ -65,15 +64,7 @@ export class OscillatorVoiceBase extends VoiceBase {
     this.oscillator = new oscillatorClass(this.context);
     this.oscillator.connect(this.envelope);
 
-    // Piecewise linear transform:
-    // detune = bend < 0 ? bend * down : bend * up.
-    // bend is expected in [-1, 1], and down/up are cents.
-    this.pitchBendShaper = new WaveShaperNode(this.context, {
-      curve: createAsymmetricCurve(0, 0),
-      oversample: 'none',
-    });
-    this.pitchBendShaper.connect(this.oscillator.detune);
-    this.pitchBend = this.pitchBendShaper;
+    this.pitchBend.connect(this.oscillator.detune);
 
     const now = this.context.currentTime;
     this.oscillator.start(now);
@@ -88,14 +79,11 @@ export class OscillatorVoiceBase extends VoiceBase {
     velocity: number,
     noteId: number,
     params: VoiceBaseParams,
-    pitchBendWeights?: PitchBendWeights,
+    pitchBendRange?: PitchBendRange,
   ): () => void {
     const now = this.context.currentTime + params.audioDelay;
     this.oscillator.frequency.setValueAtTime(frequency, now);
-    const up = pitchBendWeights?.up ?? 0;
-    const down = pitchBendWeights?.down ?? 0;
-    this.pitchBendShaper.curve = createAsymmetricCurve(down, up);
-    return super.noteOn(frequency, velocity, noteId, params, pitchBendWeights);
+    return super.noteOn(frequency, velocity, noteId, params, pitchBendRange);
   }
 
   dispose() {
@@ -107,16 +95,6 @@ export class OscillatorVoiceBase extends VoiceBase {
       this.oscillator.dispose();
     }
   }
-}
-
-function createAsymmetricCurve(down: number, up: number) {
-  const size = 2048;
-  const curve = new Float32Array(size);
-  for (let i = 0; i < size; i++) {
-    const x = (2 * i) / (size - 1) - 1;
-    curve[i] = x < 0 ? x * down : x * up;
-  }
-  return curve;
 }
 
 export class OscillatorVoice extends OscillatorVoiceBase {
@@ -133,7 +111,7 @@ export class OscillatorVoice extends OscillatorVoiceBase {
     velocity: number,
     noteId: number,
     params: OscillatorVoiceParams,
-    pitchBendWeights?: PitchBendWeights,
+    pitchBendRange?: PitchBendRange,
   ): () => void {
     if (params.periodicWave) {
       if (params.type !== 'custom') {
@@ -150,7 +128,7 @@ export class OscillatorVoice extends OscillatorVoiceBase {
       }
       this.oscillator.type = params.type;
     }
-    return super.noteOn(frequency, velocity, noteId, params, pitchBendWeights);
+    return super.noteOn(frequency, velocity, noteId, params, pitchBendRange);
   }
 }
 
@@ -170,7 +148,7 @@ export class UnisonVoice extends OscillatorVoiceBase {
     velocity: number,
     noteId: number,
     params: UnisonVoiceParams,
-    pitchBendWeights?: PitchBendWeights,
+    pitchBendRange?: PitchBendRange,
   ) {
     this.oscillator.numberOfVoices = params.stackSize;
     const now = this.context.currentTime + params.audioDelay;
@@ -192,7 +170,7 @@ export class UnisonVoice extends OscillatorVoiceBase {
       this.oscillator.type = params.type;
     }
 
-    return super.noteOn(frequency, velocity, noteId, params, pitchBendWeights);
+    return super.noteOn(frequency, velocity, noteId, params, pitchBendRange);
   }
 }
 
@@ -212,9 +190,9 @@ export class AperiodicVoice extends OscillatorVoiceBase {
     velocity: number,
     noteId: number,
     params: AperiodicVoiceParams,
-    pitchBendWeights?: PitchBendWeights,
+    pitchBendRange?: PitchBendRange,
   ) {
     this.oscillator.setAperiodicWave(params.aperiodicWave);
-    return super.noteOn(frequency, velocity, noteId, params, pitchBendWeights);
+    return super.noteOn(frequency, velocity, noteId, params, pitchBendRange);
   }
 }
