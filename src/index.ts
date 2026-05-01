@@ -109,6 +109,7 @@ export class Synth<VoiceType extends VoiceBase = OscillatorVoice> {
    * Start playing a note at the specified frequency and velocity.
    * @param frequency Frequency in Hertz.
    * @param velocity Voice amplitude. Recommended range is 0 to 1.
+   * @param pitchBendRange Asymmetric pitch bend range. Determines the effect of {@link Synth.pitchBend} on this note.
    * @returns A callback that stops playing the note.
    */
   noteOn(frequency: number, velocity: number, pitchBendRange?: PitchBendRange) {
