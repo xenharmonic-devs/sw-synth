@@ -1,4 +1,4 @@
-import {VoiceBase} from './voice/base.js';
+import {VoiceBase, PitchBendRange} from './voice/base.js';
 import {
   AperiodicVoice,
   AperiodicVoiceParams,
@@ -26,6 +26,8 @@ export class Synth<VoiceType extends VoiceBase = OscillatorVoice> {
   audioContext: BaseAudioContext;
   destination: AudioNode;
   voiceParams?: VoiceParamsOf<VoiceType>;
+  private pitchBendNode: ConstantSourceNode;
+  pitchBend: AudioParam;
   log: (msg: string) => void;
   voices: VoiceType[];
 
@@ -44,6 +46,9 @@ export class Synth<VoiceType extends VoiceBase = OscillatorVoice> {
     }
 
     this.voices = [];
+    this.pitchBendNode = new ConstantSourceNode(this.audioContext, {offset: 0});
+    this.pitchBend = this.pitchBendNode.offset;
+    this.pitchBendNode.start();
   }
 
   protected _newVoice(): VoiceType {
@@ -63,10 +68,18 @@ export class Synth<VoiceType extends VoiceBase = OscillatorVoice> {
       throw new Error('Invalid max polyphony');
     }
     while (this.voices.length > maxPolyphony) {
-      this.voices.pop()!.dispose();
+      const voice = this.voices.pop()!;
+      if (voice.pitchBend) {
+        this.pitchBendNode.disconnect(voice.pitchBend);
+      }
+      voice.dispose();
     }
     while (this.voices.length < maxPolyphony) {
-      this.voices.push(this._newVoice());
+      const voice = this._newVoice();
+      if (voice.pitchBend) {
+        this.pitchBendNode.connect(voice.pitchBend);
+      }
+      this.voices.push(voice);
     }
   }
 
@@ -98,7 +111,7 @@ export class Synth<VoiceType extends VoiceBase = OscillatorVoice> {
    * @param velocity Voice amplitude. Recommended range is 0 to 1.
    * @returns A callback that stops playing the note.
    */
-  noteOn(frequency: number, velocity: number) {
+  noteOn(frequency: number, velocity: number, pitchBendRange?: PitchBendRange) {
     const oldestVoice = this._allocateVoice();
 
     if (oldestVoice === undefined) {
@@ -111,7 +124,13 @@ export class Synth<VoiceType extends VoiceBase = OscillatorVoice> {
       );
     }
 
-    return oldestVoice.noteOn(frequency, velocity, NOTE_ID++, this.voiceParams);
+    return oldestVoice.noteOn(
+      frequency,
+      velocity,
+      NOTE_ID++,
+      this.voiceParams,
+      pitchBendRange,
+    );
   }
 
   /**

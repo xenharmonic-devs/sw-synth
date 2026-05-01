@@ -5,7 +5,7 @@ import {Synth} from '../index.js';
 class MockAudioNode {
   constructor(context: MockAudioContext) {}
 
-  connect(destinationNode: AudioNode) {
+  connect(destinationNode: AudioNode | AudioParam) {
     return destinationNode;
   }
 
@@ -35,12 +35,22 @@ class MockAudioParam {
 
 class MockConstantSourceNode extends MockAudioNode {
   offset: MockAudioParam;
+  connections: (AudioNode | AudioParam)[] = [];
 
   constructor(context: MockAudioContext, options: ConstantSourceOptions) {
     super(context);
     this.offset = new MockAudioParam();
     this.offset.setValueAtTime(options?.offset ?? 1, context.currentTime);
   }
+
+  connect(destinationNode: AudioNode | AudioParam) {
+    this.connections.push(destinationNode);
+    return destinationNode;
+  }
+
+  disconnect(destinationNode?: AudioNode | AudioParam) {}
+
+  start(when?: number) {}
 }
 
 class MockOscillatorNode extends MockAudioNode {
@@ -71,6 +81,17 @@ class MockGainNode extends MockAudioNode {
   }
 }
 
+class MockWaveShaperNode extends MockAudioNode {
+  curve?: Float32Array | number[];
+  oversample?: OverSampleType;
+
+  constructor(context: MockAudioContext, options?: WaveShaperOptions) {
+    super(context);
+    this.curve = options?.curve;
+    this.oversample = options?.oversample;
+  }
+}
+
 class MockAudioContext {
   currentTime = 0;
   createGain(): MockGainNode {
@@ -82,6 +103,7 @@ class MockAudioContext {
 vi.stubGlobal('ConstantSourceNode', MockConstantSourceNode);
 vi.stubGlobal('OscillatorNode', MockOscillatorNode);
 vi.stubGlobal('GainNode', MockGainNode);
+vi.stubGlobal('WaveShaperNode', MockWaveShaperNode);
 
 const context = new MockAudioContext() as unknown as AudioContext;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -133,5 +155,36 @@ describe('Oscillator Synth', () => {
 
     const gain = synth.voices[0].envelope.gain as unknown as MockAudioParam;
     expect(gain.cancelTime).toBeCloseTo(1.25);
+  });
+
+  it('forwards synth pitch bend parameter to voice pitch bend', () => {
+    const synth = new Synth(context, context.destination);
+    synth.maxPolyphony = 1;
+    const voice = synth.voices[0];
+    expect(voice.pitchBend).toBeDefined();
+    expect(
+      (synth as unknown as {pitchBendNode: MockConstantSourceNode})
+        .pitchBendNode.connections,
+    ).toContain(voice.pitchBend);
+  });
+
+  it('sets asymmetric pitch-bend weights per note', () => {
+    const synth = new Synth(context, context.destination);
+    synth.maxPolyphony = 1;
+    synth.voiceParams = {
+      audioDelay: 0,
+      type: 'sine',
+      attackTime: 0,
+      decayTime: 0,
+      sustainLevel: 1,
+      releaseTime: 0,
+    };
+
+    synth.noteOn(440, 0.5, {down: 175, up: 275});
+    const voice = synth.voices[0];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const curve = (voice as any).pitchBend.curve as Float32Array;
+    expect(curve[0]).toBeCloseTo(-175, 0);
+    expect(curve[curve.length - 1]).toBeCloseTo(275, 0);
   });
 });

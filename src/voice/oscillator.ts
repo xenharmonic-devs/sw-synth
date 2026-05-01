@@ -3,7 +3,7 @@ import {
   AperiodicWave,
   UnisonOscillator,
 } from 'aperiodic-oscillator';
-import {VoiceBase, VoiceBaseParams} from './base.js';
+import {PitchBendRange, VoiceBase, VoiceBaseParams} from './base.js';
 
 export {AperiodicWave} from 'aperiodic-oscillator';
 
@@ -63,6 +63,9 @@ export class OscillatorVoiceBase extends VoiceBase {
 
     this.oscillator = new oscillatorClass(this.context);
     this.oscillator.connect(this.envelope);
+
+    this.pitchBend.connect(this.oscillator.detune);
+
     const now = this.context.currentTime;
     this.oscillator.start(now);
     this.oscillator.addEventListener('ended', () => {
@@ -76,10 +79,11 @@ export class OscillatorVoiceBase extends VoiceBase {
     velocity: number,
     noteId: number,
     params: VoiceBaseParams,
+    pitchBendRange?: PitchBendRange,
   ): () => void {
     const now = this.context.currentTime + params.audioDelay;
     this.oscillator.frequency.setValueAtTime(frequency, now);
-    return super.noteOn(frequency, velocity, noteId, params);
+    return super.noteOn(frequency, velocity, noteId, params, pitchBendRange);
   }
 
   dispose() {
@@ -107,6 +111,7 @@ export class OscillatorVoice extends OscillatorVoiceBase {
     velocity: number,
     noteId: number,
     params: OscillatorVoiceParams,
+    pitchBendRange?: PitchBendRange,
   ): () => void {
     if (params.periodicWave) {
       if (params.type !== 'custom') {
@@ -123,7 +128,7 @@ export class OscillatorVoice extends OscillatorVoiceBase {
       }
       this.oscillator.type = params.type;
     }
-    return super.noteOn(frequency, velocity, noteId, params);
+    return super.noteOn(frequency, velocity, noteId, params, pitchBendRange);
   }
 }
 
@@ -143,6 +148,7 @@ export class UnisonVoice extends OscillatorVoiceBase {
     velocity: number,
     noteId: number,
     params: UnisonVoiceParams,
+    pitchBendRange?: PitchBendRange,
   ) {
     this.oscillator.numberOfVoices = params.stackSize;
     const now = this.context.currentTime + params.audioDelay;
@@ -164,7 +170,7 @@ export class UnisonVoice extends OscillatorVoiceBase {
       this.oscillator.type = params.type;
     }
 
-    return super.noteOn(frequency, velocity, noteId, params);
+    return super.noteOn(frequency, velocity, noteId, params, pitchBendRange);
   }
 }
 
@@ -184,8 +190,9 @@ export class AperiodicVoice extends OscillatorVoiceBase {
     velocity: number,
     noteId: number,
     params: AperiodicVoiceParams,
+    pitchBendRange?: PitchBendRange,
   ) {
     this.oscillator.setAperiodicWave(params.aperiodicWave);
-    return super.noteOn(frequency, velocity, noteId, params);
+    return super.noteOn(frequency, velocity, noteId, params, pitchBendRange);
   }
 }

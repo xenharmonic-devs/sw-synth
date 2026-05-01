@@ -18,6 +18,14 @@ export type VoiceBaseParams = {
   releaseTime: number;
 };
 
+/** Per-note pitch bend weights in cents for each bend direction. */
+export type PitchBendRange = {
+  /** Maximum downward bend in cents when pitch bend is -1. */
+  down: number;
+  /** Maximum upward bend in cents when pitch bend is +1. */
+  up: number;
+};
+
 // Tracking numbers for logging purposes
 let VOICE_ID = 1;
 
@@ -33,6 +41,7 @@ export class VoiceBase {
   noteId: number;
   voiceId: number;
   lastNoteOff?: () => void;
+  pitchBend: WaveShaperNode;
 
   constructor(
     context: BaseAudioContext,
@@ -48,6 +57,14 @@ export class VoiceBase {
 
     this.noteId = 0;
     this.voiceId = VOICE_ID++;
+
+    // Piecewise linear transform:
+    // detune = bend < 0 ? bend * down : bend * up.
+    // bend is expected in [-1, 1], and down/up are cents.
+    this.pitchBend = new WaveShaperNode(this.context, {
+      curve: createAsymmetricCurve(0, 0),
+      oversample: 'none',
+    });
   }
 
   noteOn(
@@ -55,6 +72,7 @@ export class VoiceBase {
     velocity: number,
     noteId: number,
     params: VoiceBaseParams,
+    pitchBendRange?: PitchBendRange,
   ) {
     this.log(
       `Voice ${this.voiceId}: Age = ${this.age}, note = ${noteId}, frequency = ${frequency}`,
@@ -90,6 +108,11 @@ export class VoiceBase {
         params.decayTime * TIME_CONSTANT,
       );
     }
+
+    // Set pitchbend range
+    const up = pitchBendRange?.up ?? 0;
+    const down = pitchBendRange?.down ?? 0;
+    this.pitchBend.curve = createAsymmetricCurve(down, up);
 
     // Construct a callback that turns this voice off.
     const noteOff = () => {
@@ -130,4 +153,8 @@ export class VoiceBase {
   }
 
   dispose() {}
+}
+
+function createAsymmetricCurve(down: number, up: number) {
+  return new Float32Array([-down, 0, up]);
 }
