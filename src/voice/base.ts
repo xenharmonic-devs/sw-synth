@@ -26,6 +26,12 @@ export type PitchBendRange = {
   up: number;
 };
 
+/** Handle for turning off previously started voices and applying shaped pitch bend or plain detune. */
+export type VoiceHandle = (() => void) & {
+  pitchBend: WaveShaperNode;
+  detune: AudioParam;
+};
+
 // Tracking numbers for logging purposes
 let VOICE_ID = 1;
 
@@ -149,7 +155,8 @@ export class VoiceBase {
 
     this.lastNoteOff = noteOff;
 
-    return noteOff;
+    // XXX: We abuse types here. Actual implementations will dress this up properly.
+    return noteOff as unknown as VoiceHandle;
   }
 
   dispose() {}

@@ -3,7 +3,12 @@ import {
   AperiodicWave,
   UnisonOscillator,
 } from 'aperiodic-oscillator';
-import {PitchBendRange, VoiceBase, VoiceBaseParams} from './base.js';
+import {
+  PitchBendRange,
+  VoiceBase,
+  VoiceBaseParams,
+  VoiceHandle,
+} from './base.js';
 
 export {AperiodicWave} from 'aperiodic-oscillator';
 
@@ -80,10 +85,13 @@ export class OscillatorVoiceBase extends VoiceBase {
     noteId: number,
     params: VoiceBaseParams,
     pitchBendRange?: PitchBendRange,
-  ): () => void {
+  ): VoiceHandle {
     const now = this.context.currentTime + params.audioDelay;
     this.oscillator.frequency.setValueAtTime(frequency, now);
-    return super.noteOn(frequency, velocity, noteId, params, pitchBendRange);
+    return Object.assign(
+      super.noteOn(frequency, velocity, noteId, params, pitchBendRange),
+      {pitchBend: this.pitchBend, detune: this.oscillator.detune},
+    );
   }
 
   dispose() {
@@ -112,7 +120,7 @@ export class OscillatorVoice extends OscillatorVoiceBase {
     noteId: number,
     params: OscillatorVoiceParams,
     pitchBendRange?: PitchBendRange,
-  ): () => void {
+  ): VoiceHandle {
     if (params.periodicWave) {
       if (params.type !== 'custom') {
         throw new Error(

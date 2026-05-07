@@ -187,4 +187,41 @@ describe('Oscillator Synth', () => {
     expect(curve[0]).toBeCloseTo(-175, 0);
     expect(curve[curve.length - 1]).toBeCloseTo(275, 0);
   });
+
+  it('has additional per-voice pitch-bend hooks', () => {
+    const synth = new Synth(context, context.destination);
+    synth.maxPolyphony = 2;
+    synth.voiceParams = {
+      audioDelay: 0,
+      type: 'sine',
+      attackTime: 0,
+      decayTime: 0,
+      sustainLevel: 1,
+      releaseTime: 0,
+    };
+
+    const handleA = synth.noteOn(220, 0.75, {down: 100, up: 200});
+    const voiceA = synth.voices[0];
+
+    expect(handleA.pitchBend).toBeDefined();
+    expect(handleA.pitchBend).toBe(voiceA.pitchBend);
+
+    expect(handleA.detune).toBeDefined();
+    expect(handleA.detune).toBe(voiceA.oscillator.detune);
+
+    const handleB = synth.noteOn(330, 0.7, {down: 200, up: 100});
+    const voiceB = synth.voices[1];
+
+    expect(handleB.pitchBend).toBeDefined();
+    expect(handleB.pitchBend).toBe(voiceB.pitchBend);
+
+    expect(handleB.detune).toBeDefined();
+    expect(handleB.detune).toBe(voiceB.oscillator.detune);
+
+    expect(voiceA.pitchBend).not.toBe(voiceB.pitchBend);
+    expect(voiceA.oscillator.detune).not.toBe(voiceB.oscillator.detune);
+
+    expect(() => handleA()).not.toThrow();
+    expect(() => handleB()).not.toThrow();
+  });
 });
